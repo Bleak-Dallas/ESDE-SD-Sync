@@ -1,6 +1,7 @@
 # ES-DE SD Sync (NAS Master Cache → Per‑Device SD Card)
 
 I use this tool to solve a repeating ES-DE problem: every new handheld/device needs scraping again. Instead, I scrape **once** into a **NAS master cache**, then this script:
+
 - Writes a **filtered** `gamelist.xml` that contains **only** the ROMs on a given SD card
 - Copies only the **media categories I choose** (covers, screenshots, marquees, etc.) from the NAS master cache to that SD card
 - Provides a **non-destructive audit mode** to identify which ROMs are missing metadata/media in the master cache
@@ -55,6 +56,7 @@ Recommended structure:
 ## Required Folder Structures ✅
 
 ### NAS Master Cache (authoritative source)
+
 Master root contains:
 
 - `\\...\ES-DE_Master\gamelists\<system>\gamelist.xml`
@@ -64,12 +66,14 @@ Example categories:
 `covers`, `screenshots`, `marquees`, `videos`, etc.
 
 ### SD Card (target)
+
 SD root contains:
 
 - `SD:\ROMs\<system>\...`
 - `SD:\ES-DE\...`
 
 Example:
+
 - `F:\ROMs\switch\Celeste.xci`
 - `F:\ES-DE\gamelists\switch\gamelist.xml`
 - `F:\ES-DE\downloaded_media\switch\covers\Celeste.png`
@@ -79,19 +83,21 @@ Example:
 ## Installation / Setup 🛠️
 
 1) Clone this repo:
-```powershell
-git clone <your-repo-url>  # clone repository
-cd <repo-folder>           # enter repository
-```
+   
+   ```powershell
+   git clone <your-repo-url>  # clone repository
+   cd <repo-folder>           # enter repository
+   ```
 
 2) Ensure `profiles.json` exists (example):
-```json
-{
-  "artwork_only": ["covers","screenshots","titlescreens","marquees"],
-  "no_videos": ["3dboxes","backcovers","covers","custom","fanart","manuals","marquees","miximages","physicalmedia","screenshots","titlescreens"],
-  "everything": ["3dboxes","backcovers","covers","custom","fanart","manuals","marquees","miximages","physicalmedia","screenshots","titlescreens","videos"]
-}
-```
+   
+   ```json
+   {
+   "artwork_only": ["covers","screenshots","titlescreens","marquees"],
+   "no_videos": ["3dboxes","backcovers","covers","custom","fanart","manuals","marquees","miximages","physicalmedia","screenshots","titlescreens"],
+   "everything": ["3dboxes","backcovers","covers","custom","fanart","manuals","marquees","miximages","physicalmedia","screenshots","titlescreens","videos"]
+   }
+   ```
 
 3) Confirm your SD has `ROMs` and `ES-DE` at the root:
 - If missing, create them:
@@ -105,7 +111,9 @@ cd <repo-folder>           # enter repository
 ## A) Run in PowerShell (recommended)
 
 ### 1) Default sync (profile + backup)
+
 **What it does**
+
 - Filters gamelists to only ROMs on SD
 - Copies media categories from profile
 - Writes SD gamelist (backed up first)
@@ -120,13 +128,16 @@ py .\sync_esde_sd.py `                                                  # run sc
 ```
 
 ### 2) Same command (single line / no PowerShell line continuation)
+
 ```powershell
 # Summary: same sync command as one line
 py .\sync_esde_sd.py --nas_master_root "\\10.42.42.2\media\retro_gaming\ES-DE_Master" --sd_root "F:" --profile "no_videos" --backup_gamelist  # one-liner
 ```
 
 ### 3) Audit first (recommended “new SD card” workflow)
+
 **What it does**
+
 - No copies, no writes
 - Reports what is missing in your NAS master cache
 
@@ -162,11 +173,13 @@ py sync_esde_sd.py --nas_master_root "\\10.42.42.2\media\retro_gaming\ES-DE_Mast
 ## C) Optional: Use the interactive wrapper (PowerShell) 🧰
 
 If you include `run_sync.ps1`, it can:
+
 - Detect candidate SD drives (looks for `\ROMs` + `\ES-DE`)
 - Let you pick a drive + profile
 - Build and run the Python command
 
 Run it:
+
 ```powershell
 # Summary: interactive wrapper (drive + profile picker)
 .\run_sync.ps1  # prompts for SD drive/profile and executes sync
@@ -189,42 +202,47 @@ I keep two docs in `docs/`:
 ## First-Time Workflow (Recommended) ✅
 
 1) **Audit**
-```powershell
-# Summary: audit first to identify missing master cache items
-py .\sync_esde_sd.py --nas_master_root "\\10.42.42.2\media\retro_gaming\ES-DE_Master" --sd_root "F:" --profile "no_videos" --audit_missing_master
-```
+   
+   ```powershell
+   # Summary: audit first to identify missing master cache items
+   py .\sync_esde_sd.py --nas_master_root "\\10.42.42.2\media\retro_gaming\ES-DE_Master" --sd_root "F:" --profile "no_videos" --audit_missing_master
+   ```
 
 2) Fix master cache gaps (re-scrape missing titles, or add media manually)
 
 3) **Sync**
-```powershell
-# Summary: perform the real sync after master cache is ready
-py .\sync_esde_sd.py --nas_master_root "\\10.42.42.2\media\retro_gaming\ES-DE_Master" --sd_root "F:" --profile "no_videos" --backup_gamelist
-```
+   
+   ```powershell
+   # Summary: perform the real sync after master cache is ready
+   py .\sync_esde_sd.py --nas_master_root "\\10.42.42.2\media\retro_gaming\ES-DE_Master" --sd_root "F:" --profile "no_videos" --backup_gamelist
+   ```
 
 ---
 
 ## Troubleshooting ⚠️
 
 ### “Missing media” for a ROM
+
 - If audit says media is missing, it is missing **in the NAS master cache**.
 - Fix upstream by re-scraping that title into the master cache (or add media manually).
 
 ### UNC path / permissions issues
+
 - Verify you can open `\\10.42.42.2\media\retro_gaming\ES-DE_Master` in Explorer.
 - Ensure your Windows user has read access to NAS master directories.
 
 ### Fuzzy matching
+
 - Use only when you suspect filenames differ slightly.
 - Enable with:
-```powershell
-# Summary: enable fuzzy matching (use when names differ slightly)
-py .\sync_esde_sd.py --nas_master_root "\\10.42.42.2\media\retro_gaming\ES-DE_Master" --sd_root "F:" --profile "no_videos" --backup_gamelist --fuzzy_media_match
-```
+  
+  ```powershell
+  # Summary: enable fuzzy matching (use when names differ slightly)
+  py .\sync_esde_sd.py --nas_master_root "\\10.42.42.2\media\retro_gaming\ES-DE_Master" --sd_root "F:" --profile "no_videos" --backup_gamelist --fuzzy_media_match
+  ```
 
 ---
 
-## License / Disclaimer 📝
+## License 📝
 
-- I use this for my personal ES-DE workflow. Adjust paths/profiles as needed.
-- Add a license file if you plan to share broadly (MIT is common).
+MIT License — see `LICENSE`.
