@@ -1,0 +1,6 @@
+{
+  "artwork_only": ["covers", "marquees", "screenshots", "titlescreens", "fanart"],
+  "no_videos": ["3dboxes", "backcovers", "covers", "custom", "fanart", "manuals", "marquees", "miximages", "physicalmedia", "screenshots", "titlescreens"],
+  "custom": ["3dboxes", "backcovers", "covers", "custom", "fanart", "manuals", "marquees", "miximages", "physicalmedia", "screenshots", "titlescreens", "videos"],
+  "everything": ["3dboxes", "backcovers", "covers", "custom", "fanart", "manuals", "marquees", "miximages", "physicalmedia", "screenshots", "titlescreens", "videos"]
+}
