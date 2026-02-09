@@ -47,18 +47,42 @@ foreach ($d in $drives) {
     }
 }
 
+$sdRoot = $null # Initialize sdRoot
+
 if ($candidates.Count -eq 0) {
-    throw "No candidate SD drives found (needs \ROMs and \ES-DE in drive root)."
-}
+    Write-Warning "No candidate SD drives found automatically (needs \ROMs and \ES-DE in drive root)."
+    Write-Host "You can choose from all connected external drives instead."
 
-Write-Host "Candidate SD drives:"  # show menu
-for ($i = 0; $i -lt $candidates.Count; $i++) {
-    Write-Host ("[{0}] {1}" -f $i, $candidates[$i].Root)  # display each candidate
-}
+    # Get all "Removable" or "Fixed" volumes with a drive letter, excluding the system drive
+    $allDrives = Get-Volume | Where-Object { ($_.DriveType -eq 'Fixed' -or $_.DriveType -eq 'Removable') -and $_.DriveLetter -and ($_.Path -ne ($env:SystemDrive + '\')) }
 
-[int]$idx = Read-Host "Select SD drive index"            # prompt user
-if ($idx -lt 0 -or $idx -ge $candidates.Count) { throw "Invalid selection." }  # validate input
-$sdRoot = $candidates[$idx].Root.TrimEnd("\")            # e.g., "F:"
+    if ($allDrives.Count -eq 0) {
+        throw "No other external drives were found."
+    }
+
+    Write-Host "`nAvailable drives:"
+    for ($i = 0; $i -lt $allDrives.Count; $i++) {
+        $drive = $allDrives[$i]
+        $driveLabel = if ([string]::IsNullOrWhiteSpace($drive.FileSystemLabel)) { "No Label" } else { $drive.FileSystemLabel }
+        Write-Host ("[{0}] {1}:\ ({2})" -f $i, $drive.DriveLetter, $driveLabel)
+    }
+
+    # Use a different variable for the index to avoid conflict
+    [int]$manualIdx = Read-Host "Select drive index to use as the target"
+    if ($manualIdx -lt 0 -or $manualIdx -ge $allDrives.Count) { throw "Invalid selection." }
+
+    # Set sdRoot directly
+    $sdRoot = $allDrives[$manualIdx].DriveLetter + ":"
+} else {
+    Write-Host "Candidate SD drives:"  # show menu
+    for ($i = 0; $i -lt $candidates.Count; $i++) {
+        Write-Host ("[{0}] {1}" -f $i, $candidates[$i].Root)  # display each candidate
+    }
+
+    [int]$idx = Read-Host "Select SD drive index"            # prompt user
+    if ($idx -lt 0 -or $idx -ge $candidates.Count) { throw "Invalid selection." }  # validate input
+    $sdRoot = $candidates[$idx].Root.TrimEnd("\")            # e.g., "F:"
+}
 
 # Show profiles
 $profileNames = @($profiles.PSObject.Properties.Name)    # list of preset names
@@ -81,13 +105,34 @@ else {
     $profileName = $profileNames[$pidx]                     # selected profile name
 }
 
+
+# Default Systems from config
+$defaultSystems = $null
+if ($null -ne $config.default_systems) { $defaultSystems = $config.default_systems }
+
+# Fuzzy Match Default from config
+$fuzzyMatch = $false
+if ($null -ne $config.fuzzy_media_match_default) { $fuzzyMatch = [bool]$config.fuzzy_media_match_default }
+
+# Dry Run Default from config (default to true if missing for safety, unless config says false)
+# Logic: If config has it, use it. If not, default to $true (safest).
+$configDryRun = $true
+if ($null -ne $config.dry_run_default) { $configDryRun = [bool]$config.dry_run_default }
+
 # Ask for dry run
-$dry = Read-Host "Dry run? (Y/n)"                         # prompt
-$dryRun = -not ($dry -match "^(n|no)$")                   # default yes unless user says no
+# Show distinct prompt based on default
+if ($configDryRun) {
+    $dryInput = Read-Host "Dry run? (Y/n)"  # Default Yes
+    $dryRun = -not ($dryInput -match "^(n|no)$")
+}
+else {
+    $dryInput = Read-Host "Dry run? (y/N)"  # Default No
+    $dryRun = ($dryInput -match "^(y|yes)$")
+}
 
 # Backup setting from config (default true if missing)
 $backup = $true
-if ($null -ne $config.backup_gamelist) { $backup = [bool]$config.backup_gamelist }  # honor config if present
+if ($null -ne $config.backup_gamelist) { $backup = [bool]$config.backup_gamelist }
 
 # Build python command args
 $nasRoot = $config.nas_master_root                        # NAS master root from config
@@ -101,9 +146,14 @@ $cmd = @(
 
 if ($dryRun) { $cmd += "--dry_run" }                      # add dry-run flag
 if ($backup) { $cmd += "--backup_gamelist" }              # add backup flag
+if ($fuzzyMatch) { $cmd += "--fuzzy_media_match" }        # add fuzzy match flag
+if (-not [string]::IsNullOrWhiteSpace($defaultSystems)) {
+    $cmd += "--systems"
+    $cmd += $defaultSystems
+}
 
 Write-Host "`nRunning:"                                   # echo command for visibility
 Write-Host ($cmd -join " ")
 
 # Execute: first element is the executable, remaining are args
-& $cmd[0] @($cmd[1..($cmd.Count - 1)])                     # run executable with arguments
+& $cmd[0] @($cmd[1..($cmd.Count - 1)])
